@@ -19,12 +19,11 @@ using namespace defs;
 
 
 template <typename T>
-concept StreamObservable = requires(T stream) {
-    { stream.onData() } -> std::same_as<void>;
+concept StreamObservable = requires(T stream, std::string&& data) {
+    { stream.onData(std::forward<std::string>(data)) } -> std::same_as<void>;
     { stream.onPaused()} -> std::same_as<void>;
     { stream.onResumed()} -> std::same_as<void>;
     { stream.onStopped()} -> std::same_as<void>;
-    { stream.onReset()} -> std::same_as<void>;
     { stream.onEof()} -> std::same_as<void>;
 };
 
@@ -73,10 +72,6 @@ public:
         }
     }
     
-    void reset() {
-
-    }
-
     void waitToFinish() {
         if (readingThread_.joinable()) {
             readingThread_.join();
@@ -110,7 +105,7 @@ private:
     }
 
     void startReading(std::stop_token stopToken) {
-        for (auto const& valueStr : readChunks()) {
+        for (auto &&valueStr : readChunks()) {
             if (stopToken.stop_requested()) { 
                 break; 
             }
@@ -130,7 +125,7 @@ private:
                     }
                 }
             }
-            std::cout << valueStr;
+            observer_.onData(move(valueStr));
         }
     }
 
@@ -141,6 +136,7 @@ private:
     std::atomic_bool isPaused_{false};
     std::condition_variable cv_;
     std::mutex mtx_;
+    Observer observer_;
 };
 
 } // omlog::stream

@@ -10,14 +10,13 @@
 
 namespace omlog::ds {
 
-using OnQueuePopedFunc = std::function<void(std::string&&)>;
+using OnQueuePopedFunc = std::function<void(std::string)>;
 
 template <typename T, std::size_t TCapacity>
 class ReactiveStaticQueue final {
 public:
     static_assert(TCapacity > 0, "Capacity must be greater than zero");
 
-    using LockGuard = std::lock_guard<std::mutex>;
     using UniqueLock = std::unique_lock<std::mutex>;
     using ScopedLock = std::scoped_lock<std::mutex>;
 
@@ -26,16 +25,10 @@ public:
      * @param
      */
     ReactiveStaticQueue() {
-        consumer_thr_ = std::jthread([this] (std::stop_token stop_token) {
-            pop(stop_token);
-        });
+        consumer_thr_ = std::jthread([this] (std::stop_token stop_token) { pop(stop_token); });
     }
 
-    ~ReactiveStaticQueue() {
-        if (consumer_thr_.joinable()) {
-            consumer_thr_.request_stop();
-        }
-    }
+    ~ReactiveStaticQueue() { abort(); }
 
     /**
      * @brief Deleted constructors
@@ -63,22 +56,29 @@ public:
      * @param newItem
      */
     void push(T&& newItem) {
-        UniqueLock lock{size_mtx_};
-        size_changed_cv_.wait(lock, [&]() { return size_ < TCapacity; });
+        UniqueLock locker{size_mtx_};
+        size_changed_cv_.wait(locker, [&]() { return size_ < TCapacity; });
 
         queue_[front_] = std::move(newItem);
 
         advance(front_);
         size_++;
+        locker.unlock();
         size_changed_cv_.notify_all();
     }
 
-    void register_reaction_on_poped(OnQueuePopedFunc f) {
-        consume_ = f;
+    void register_reaction_on_popped(OnQueuePopedFunc const& f) { consume_ = f; }
+
+    void abort() { if (consumer_thr_.joinable()) { consumer_thr_.request_stop(); } }
+
+    void consume_all_and_finish() {
+        UniqueLock locker{size_mtx_};
+        size_changed_cv_.wait(locker, [this] { return size_ == 0u; });
+        abort();
     }
 
 private:
-    constexpr void advance(std::size_t& index) {
+    constexpr void advance(std::size_t& index) const {
         //    The purpose of the modulus operation in this context is to ensure that the index front_ 
         // remains within the valid range of the array queue_. Since front_ represents the index of 
         // the next available slot in the queue, it needs to wrap around when it reaches the end of 
@@ -105,23 +105,17 @@ private:
     {
         while (!stop_token.stop_requested())
         {
+            UniqueLock locker{size_mtx_};
+            if (size_changed_cv_.wait_for(locker, std::chrono::milliseconds(50), [this]()
+                                          { return size_ > 0u; }))
             {
-                UniqueLock lock{size_mtx_};
-                if (size_changed_cv_.wait_for(lock, std::chrono::milliseconds(100), [&]()
-                                      { return size_ > 0u;  })) {
-                    ; // do nothing
-                } else {
-                    // The wait timed out or spurious wakeup occurred
-                    continue;
-                }
-            }
-            consume_(std::move(queue_[back_]));
-            advance(back_);
+                consume_(std::move(queue_[back_]));
+                advance(back_);
 
-            UniqueLock lock{size_mtx_};
-            size_--;
-            size_changed_cv_.notify_all();
-            lock.unlock();
+                size_--;
+                locker.unlock();
+                size_changed_cv_.notify_all();
+            }
         }
     }
 

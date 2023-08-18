@@ -9,24 +9,30 @@ namespace omlog::defs {
 
     constexpr int Size1Kb = 1'024;
 
-    inline constexpr int operator ""_kb (unsigned long long value) {
+    consteval size_t operator ""_kb (unsigned long long value) {
         return value * Size1Kb;
+    }
+
+    consteval size_t operator ""_mb(unsigned long long value) {
+        return value * Size1Kb * Size1Kb;
     }
 
     enum class FileEncoding { UTF8, UTF16 };
 
     struct StreamLineData {
-        size_t id;
-        size_t startAt;
-        int32_t length;
+        long long start_pos{0};
+        int32_t id{0};
+        std::string line;
     };
 
     using StreamLineData_vec = std::vector<StreamLineData>;
 
     struct StreamConfig {
-        std::filesystem::path filePath;
+        std::filesystem::path file_path;
         int chunkSize{32_kb};
         FileEncoding encoding{FileEncoding::UTF8};
     };
+
+    const char g_new_line = '\n';
 
 } // namespace omlog::defs

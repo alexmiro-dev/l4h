@@ -34,7 +34,7 @@ public:
     struct iterator {
         std::coroutine_handle<promise_type> handle_;
         
-        iterator(auto handle) : handle_{handle} {}
+        explicit iterator(auto handle) : handle_{handle} {}
 
         void getNext() {
             if (handle_) {

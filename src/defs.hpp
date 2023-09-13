@@ -27,10 +27,16 @@ namespace omlog::defs {
 
     using StreamLineData_vec = std::vector<StreamLineData>;
 
+    struct LogPattern {
+        std::string sample;
+        std::string sample_vars;
+    };
+
     struct StreamConfig {
         std::filesystem::path file_path;
-        int chunkSize{32_kb};
+        int chunk_size{32_kb};
         FileEncoding encoding{FileEncoding::UTF8};
+        LogPattern log_pattern;
     };
 
     const char g_new_line = '\n';

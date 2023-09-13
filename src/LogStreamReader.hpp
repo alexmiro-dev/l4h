@@ -4,14 +4,13 @@
 #include "TextStreamReader.hpp"
 #include "StreamBuffers.hpp"
 #include "ReactiveStaticQueue.hpp"
+#include "Header.hpp"
 
 #include <mutex>
 #include <condition_variable>
-
 #include <iostream>
 
 namespace omlog {
-
 
 /**
  *
@@ -46,8 +45,9 @@ public:
         if (!data_.line_vec.empty())
         {
             data_.info.line = std::string{data_.line_vec.begin(), data_.line_vec.end()};
-            lines_.emplace_back(data_.info);
+            lines_.push_back(data_.info);
         }
+        /* Debug code
         std::ofstream out{"/home/miro/dev/full-result.txt"};
 
         for (auto const &line : lines_)
@@ -55,7 +55,10 @@ public:
             out << line.line;
         }
         out.close();
+        */
     }
+
+    void on_read_percentage([[maybe_unused]] double percentage) { }
 
 private:
     struct DataHelper {
@@ -71,15 +74,15 @@ private:
         processed_queue_data_ = false;
         locker.unlock();
 
-        auto const text = std::move(data);
-
-        for (char c : text) {
+        for (auto const text = std::move(data); char c : text) {
             data_.line_vec.push_back(c);
 
             if (c == defs::g_new_line) {
                 data_.info.id = data_.line_id++;
                 data_.info.line = std::string{data_.line_vec.begin(), data_.line_vec.end()};
                 lines_.push_back(data_.info);
+                
+                process_line(data_.info);
 
                 data_.line_vec.clear();
                 data_.info.start_pos = data_.cursor_pos + 1;
@@ -90,6 +93,11 @@ private:
         processed_queue_data_ = true;
         locker.unlock();
         queue_data_finished_cv_.notify_one();
+    }
+
+    void process_line(defs::StreamLineData const& stream_line) {
+        
+
     }
 
 

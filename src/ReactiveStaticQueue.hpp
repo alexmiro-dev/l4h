@@ -14,11 +14,11 @@ using OnQueuePopedFunc = std::function<void(std::string)>;
 
 template <typename T, std::size_t TCapacity>
 class ReactiveStaticQueue final {
-public:
-    static_assert(TCapacity > 0, "Capacity must be greater than zero");
-
+private:
     using UniqueLock = std::unique_lock<std::mutex>;
     using ScopedLock = std::scoped_lock<std::mutex>;
+public:
+    static_assert(TCapacity > 0, "Capacity must be greater than zero");
 
     /**
      * @brief

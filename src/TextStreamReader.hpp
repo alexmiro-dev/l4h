@@ -16,12 +16,13 @@
 namespace omlog::stream {
 
 template <typename T>
-concept StreamObservable = requires(T stream, std::string data) {
+concept StreamObservable = requires(T stream, std::string data, double percentage) {
     { stream.on_data(std::forward<std::string>(data)) } -> std::same_as<void>;
     { stream.on_paused()} -> std::same_as<void>;
     { stream.on_resumed()} -> std::same_as<void>;
     { stream.on_stopped()} -> std::same_as<void>;
     { stream.on_eof()} -> std::same_as<void>;
+    { stream.on_read_percentage(std::forward<double>(percentage))} -> std::same_as<void>;
 };
 
 template <StreamObservable Observer>
@@ -78,8 +79,8 @@ public:
 
 private:
     void load() {
-        if (auto file_size_opt = utils::fileSize(config_.file_path); !file_size_opt) {
-            // Throw
+        if (auto file_size_opt = utils::fileSize(config_.file_path); file_size_opt) {
+            file_size_ = file_size_opt.value();
         }
         std::ifstream file{config_.file_path.string()};
 
@@ -90,41 +91,34 @@ private:
     }
 
     coro::Generator<std::string> read_chunks() {
-        static std::vector<char> buffer(config_.chunkSize);
+        static std::vector<char> buffer(config_.chunk_size);
+
+        double total_bytes_read = 0.0;
 
         while (!file_stream_.eof()) {
-            file_stream_.read(buffer.data(), config_.chunkSize);
-
-            auto bytes = file_stream_.gcount();
-
+            file_stream_.read(buffer.data(), config_.chunk_size);
+            auto const bytes = file_stream_.gcount();
             std::string s(buffer.begin(), buffer.begin() + bytes);
+            total_bytes_read += bytes;
+            observer_.on_read_percentage((total_bytes_read / file_size_) * 100.0);
             co_yield s;
         }
     }
 
     void start_reading(std::stop_token stop_token) {
         for (auto valueStr : read_chunks()) {
-            if (stop_token.stop_requested()) { 
-                break; 
-            }
-            while (is_paused_.load()) {
-                if (stop_token.stop_requested()) {
-                    break;
-                }
+            observer_.on_data(valueStr);
 
+            while (is_paused_.load() && !stop_token.stop_requested()) {
                 std::unique_lock lock{mtx_};
 
-                if (cv_.wait_for(lock, std::chrono::seconds(1), [is_paused = is_paused_.load()]
+                if (cv_.wait_for(lock, std::chrono::milliseconds(300), [is_paused = is_paused_.load()]
                                  { return !is_paused; })) {
-                    // The condition has been met: it is not paused anymore.
-                    break;
-                } else {
-                    // The wait timed out or spurious wakeup occurred
-                    continue;
-                }
+                    break; // The condition has been met: it is not paused anymore.
+
+                } // else: The wait timed out or spurious wakeup occurred
             }
-            observer_.on_data(valueStr);
-            // std::cout << valueStr;
+            if (stop_token.stop_requested()) { break; }
         }
         observer_.on_eof();
     }
@@ -132,6 +126,7 @@ private:
 
     defs::StreamConfig config_;
     std::ifstream file_stream_;
+    std::size_t file_size_;
     std::jthread reading_thr_;
     std::atomic_bool is_paused_{false};
     std::condition_variable cv_;

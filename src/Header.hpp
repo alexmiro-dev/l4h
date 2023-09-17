@@ -3,6 +3,7 @@
 
 #include <concepts>
 #include <string_view>
+#include <fmt/core.h>
 
 namespace omlog::header {
 
@@ -17,8 +18,8 @@ enum class DateFormat { YYYY_MM_DD, DD_MM_YYYY };
 
 class Date {
 private:
-    static constexpr std::string_view YYYY_MM_DD = R"(\d{4}[-/]\d{2}[-/]\d{2})";
-    static constexpr std::string_view DD_MM_YYYY = R"(\d{2}[-/]\d{2}[-/]\d{4})";
+    static constexpr std::string_view YYYY_MM_DD = R"#((\d{4}[-/]\d{2}[-/]\d{2}))#";
+    static constexpr std::string_view DD_MM_YYYY = R"#((\d{2}[-/]\d{2}[-/]\d{4}))#";
 public:
 
     consteval explicit Date(DateFormat f) : format_{f} { }
@@ -35,49 +36,62 @@ private:
     DateFormat format_;
 };
 
+struct TimeDivision {
+    enum class Unity {None, Milliseconds, Microseconds, Nanoseconds };
+
+    Unity unity{Unity::None};
+    uint8_t digits{3U};
+    char separator{'\0'};
+};
+
+// \d{2}:\d{2}:\d{2}\.\d{3}
 class Time {
 public:
-    consteval Time() {}
+    explicit Time(TimeDivision&& time_division) 
+        : division_{std::move(time_division)} {}
 
     std::string_view to_regex() const {
-        return "";
+        static constexpr auto hhmmss = "\\d{2}:\\d{2}:\\d{2}";
+
+        if (division_.unity != TimeDivision::Unity::None) {
+            const std::string sep = division_.separator == '.' ? "\\." : std::string{division_.separator};
+            const std::string pattern = fmt::format("({}{}\\d{{}})", hhmmss, sep, division_.digits);
+            return pattern;
+        }
+        return hhmmss;
     }
+private:
+    TimeDivision division_;
 };
 
 class LoggerName {
 public:
     consteval LoggerName() {}
-
-    std::string_view to_regex() const {
-        return "";
-    }
+    std::string_view to_regex() const { return "(.*?)"; }
 };
+
+enum class LogLevel {Trace, Debug, Info, Warn, Err, Critical};
 
 class Level {
 public:
     consteval Level() {}
 
-    std::string_view to_regex() const {
-        return "";
-    }
+    std::string_view to_regex() const { return "(.*?)"; }
 };
 
 class ThreadId {
 public:
     consteval ThreadId() {}
 
-    std::string_view to_regex() const {
-        return "";
-    }
+    // The thread Id could be represented by a hexadecimal value as well
+    std::string_view to_regex() const { return "([A-Fa-f0-9]+)"; }
 };
 
 class Pid {
 public:
     consteval Pid() {}
 
-    std::string_view to_regex() const {
-        return "";
-    }
+    std::string_view to_regex() const { return "([0-9]+)"; }
 };
 
 class Source {
@@ -93,18 +107,14 @@ class SourceFuncName {
 public:
     consteval SourceFuncName() {}
 
-    std::string_view to_regex() const {
-        return "";
-    }
+    std::string_view to_regex() const { return "(.*?)"; }
 };
 
 class SourceLine {
 public:
     consteval SourceLine() {}
 
-    std::string_view to_regex() const {
-        return "";
-    }
+    std::string_view to_regex() const { return "([0-9]+)"; }
 };
 
 class Message {
@@ -163,10 +173,19 @@ private:
                 build_pattern(pattern, entities...);
                 break;
             } else {
-                regex_ += pattern.front();
+                regex_ += escape_if_regex_symbol(pattern.front());
                 pattern.remove_prefix(1);
             }
         }
+    }
+
+    std::string escape_if_regex_symbol(char c) const {
+        if (regex_metachars_.find_first_of(c) != std::string_view::npos) {
+            std::string ret{"\\"};
+            ret += c;
+            return ret;
+        }
+        return {c};
     }
 
     //Base case for the recursive function (no arguments left to process)
@@ -182,6 +201,7 @@ private:
         }
     }
 
+    constexpr static std::string_view regex_metachars_ = ".*+?|[]()^$\\";
     constexpr static std::string_view place_holder_ = "{}";
     std::string regex_;
 };

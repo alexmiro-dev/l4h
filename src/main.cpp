@@ -20,10 +20,11 @@ int main()
 
     LogStreamReader logStream{std::move(config)};
 
+    h::TimeDivision time_division{h::TimeDivision::Unity::Nanoseconds, 3U, '.'};
 
     h::HeaderPattern header = h::HeaderPattern{"[{} {}] [{}] [{}] {}"sv
                                     , h::Date{h::DateFormat::YYYY_MM_DD}
-                                    , h::Time{}
+                                    , h::Time{std::move(time_division)}
                                     , h::LoggerName{}
                                     , h::Level{}
                                     , h::Message{}};

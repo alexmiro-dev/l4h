@@ -5,6 +5,8 @@
 #include <cstdint>
 #include <filesystem>
 
+#include "Header.hpp"
+
 namespace omlog::defs {
 
     constexpr int Size1Kb = 1'024;
@@ -25,18 +27,11 @@ namespace omlog::defs {
         std::string line;
     };
 
-    using StreamLineData_vec = std::vector<StreamLineData>;
-
-    struct LogPattern {
-        std::string sample;
-        std::string sample_vars;
-    };
-
     struct StreamConfig {
         std::filesystem::path file_path;
         int chunk_size{32_kb};
         FileEncoding encoding{FileEncoding::UTF8};
-        LogPattern log_pattern;
+        header::HeaderPattern header_pattern;
     };
 
     const char g_new_line = '\n';

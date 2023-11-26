@@ -1,0 +1,9 @@
+.idea/
+
+# CMake files
+CMakeCache.txt
+CMakeFiles/
+CMakeScripts/
+Testing/
+cmake-build-debug
+build/

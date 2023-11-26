@@ -4,8 +4,7 @@
 
 #include <regex>
 
-using namespace omlog;
-namespace h = omlog::header;
+using namespace l4h;
 
 using namespace std::chrono_literals;
 using namespace std::literals;
@@ -15,18 +14,18 @@ int main()
     defs::StreamConfig config;
     config.file_path = "/home/miro/dev/vm-desktop.log";
 
-    h::TimeDivision time_division{h::TimeDivision::Unity::Nanoseconds, 3U, '.'};
-    auto header = h::HeaderPattern{"[{} {}] [{}] [{}] {}"sv
-                                    , h::Date{h::DateFormat::YYYY_MM_DD}
-                                    , h::Time{std::move(time_division)}
-                                    , h::LoggerName{}
-                                    , h::Level{}
-                                    , h::Message{}};
+    TimeDivision time_division{TimeDivision::Unity::Nanoseconds, 3U, '.'};
+    auto line_parser = std::make_shared<LineParser>("[{} {}] [{}] [{}] {}"sv
+                                    , Date{DateFormat::YYYY_MM_DD}
+                                    , Time{std::move(time_division)}
+                                    , LoggerName{}
+                                    , Level{}
+                                    , Message{});
 
-    const std::string line = "[2023-07-19 12:55:48.691] [voicemod-desktop] [debug] The message";
-    header.deserialize(line);
+    const std::string line = "[2023-07-19 12:55:48.691] [app-desktop] [debug] The message";
+    auto line_parts = line_parser->deserialize(line);
 
-    config.header_pattern = std::move(header);
+    config.line_parser = line_parser;
 
 
     LogStreamReader logStream{std::move(config)};

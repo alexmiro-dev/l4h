@@ -3,7 +3,7 @@
 
 #include <string_view>
 
-namespace omlog::stream {
+namespace l4h::stream {
 
 
     // each line in buffer must have the file descriptor BEGIN and END to help associating the line number and its

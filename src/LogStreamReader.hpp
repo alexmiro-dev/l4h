@@ -4,13 +4,14 @@
 #include "TextStreamReader.hpp"
 #include "StreamBuffers.hpp"
 #include "ReactiveStaticQueue.hpp"
-#include "Header.hpp"
+#include "LineParser.hpp"
+#include "LogRecord.hpp"
 
 #include <mutex>
 #include <condition_variable>
 #include <iostream>
 
-namespace omlog {
+namespace l4h {
 
 /**
  *
@@ -18,7 +19,7 @@ namespace omlog {
 class LogStreamReaderImpl {
 public:
     LogStreamReaderImpl() {
-        using namespace omlog::defs;
+        using namespace l4h::defs;
 
         raw_data_queue_.register_reaction_on_popped([this] (std::string data) {
             on_reactive_queue_data(std::move(data));
@@ -28,6 +29,8 @@ public:
     }
 
     ~LogStreamReaderImpl() = default;
+
+    void config(defs::StreamConfig const& config) { stream_config_ = config; }
 
     void on_data(std::string data) { raw_data_queue_.push(std::move(data)); }
 
@@ -62,7 +65,7 @@ public:
 
 private:
     struct DataHelper {
-        int32_t line_id{1};
+        defs::line_uid_t uid{1};
         std::vector<char> line_vec;
         long long cursor_pos{0LL};
         defs::StreamLineData info;
@@ -78,11 +81,13 @@ private:
             data_.line_vec.push_back(c);
 
             if (c == defs::g_new_line) {
-                data_.info.id = data_.line_id++;
+                data_.info.id = data_.uid++;
                 data_.info.line = std::string{data_.line_vec.begin(), data_.line_vec.end()};
                 lines_.push_back(data_.info);
                 
-                process_line(data_.info);
+                auto record = parse(data_.info);
+
+                // TODO: publish?
 
                 data_.line_vec.clear();
                 data_.info.start_pos = data_.cursor_pos + 1;
@@ -95,9 +100,23 @@ private:
         queue_data_finished_cv_.notify_one();
     }
 
-    void process_line(defs::StreamLineData const& stream_line) {
-        
+    [[nodiscard]] LogRecord parse(defs::StreamLineData const& stream_line) const {
+        static LineParser parser = *stream_config_.line_parser;
+        static defs::line_uid_t last_parsed_line_id;
 
+        LogRecord record;
+
+        if (auto const tokens = parser.deserialize(stream_line.line); !tokens.empty()) {
+            record.set_type(LogRecord::Type::HeaderAndMessage);
+            record.set_uid(stream_line.id);
+            record.set_tokens(tokens);
+            last_parsed_line_id = stream_line.id;
+        } else {
+            record.set_type(LogRecord::Type::MessagePart);
+            record.set_parent_uid(last_parsed_line_id);
+            record.set_message_part(stream_line.line);
+        }
+        return record;
     }
 
 
@@ -107,8 +126,9 @@ private:
     std::mutex queue_data_mtx_;
     std::atomic_bool processed_queue_data_{false};
     std::condition_variable queue_data_finished_cv_;
+    defs::StreamConfig stream_config_;
 };
 
-using LogStreamReader = stream::TextStreamReader<LogStreamReaderImpl>;
+using LogStreamReader = TextStreamReader<LogStreamReaderImpl>;
 
-} // namespace omlog
+} // namespace l4h

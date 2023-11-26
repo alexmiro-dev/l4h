@@ -1,6 +1,6 @@
 #pragma once
 
-#include "defs.hpp"
+#include "definitions.hpp"
 #include "utils.h"
 #include "StreamBuffers.hpp"
 #include "coroutine_utils.hpp"
@@ -13,10 +13,11 @@
 
 #include <iostream>
 
-namespace omlog::stream {
+namespace l4h {
 
 template <typename T>
-concept StreamObservable = requires(T stream, std::string data, double percentage) {
+concept StreamObservable = requires(T stream, std::string data, double percentage, defs::StreamConfig const& config) {
+    { stream.config(std::forward<defs::StreamConfig const&>(config)) } -> std::same_as<void>;
     { stream.on_data(std::forward<std::string>(data)) } -> std::same_as<void>;
     { stream.on_paused()} -> std::same_as<void>;
     { stream.on_resumed()} -> std::same_as<void>;
@@ -25,10 +26,12 @@ concept StreamObservable = requires(T stream, std::string data, double percentag
     { stream.on_read_percentage(std::forward<double>(percentage))} -> std::same_as<void>;
 };
 
-template <StreamObservable Observer>
+template <StreamObservable Implementation>
 class TextStreamReader {
 public:
-    explicit TextStreamReader(defs::StreamConfig&& config) : config_{std::move(config)} {}
+    explicit TextStreamReader(defs::StreamConfig&& config) : config_{std::move(config)} {
+        implementation_.config(config_);
+    }
 
     TextStreamReader() = delete;
     TextStreamReader(TextStreamReader const&) = delete;
@@ -100,14 +103,14 @@ private:
             auto const bytes = file_stream_.gcount();
             std::string s(buffer.begin(), buffer.begin() + bytes);
             total_bytes_read += bytes;
-            observer_.on_read_percentage((total_bytes_read / file_size_) * 100.0);
+            implementation_.on_read_percentage((total_bytes_read / file_size_) * 100.0);
             co_yield s;
         }
     }
 
     void start_reading(std::stop_token stop_token) {
-        for (auto valueStr : read_chunks()) {
-            observer_.on_data(valueStr);
+        for (auto&& valueStr : read_chunks()) {
+            implementation_.on_data(valueStr);
 
             while (is_paused_.load() && !stop_token.stop_requested()) {
                 std::unique_lock lock{mtx_};
@@ -120,7 +123,7 @@ private:
             }
             if (stop_token.stop_requested()) { break; }
         }
-        observer_.on_eof();
+        implementation_.on_eof();
     }
 
 
@@ -131,7 +134,7 @@ private:
     std::atomic_bool is_paused_{false};
     std::condition_variable cv_;
     std::mutex mtx_;
-    Observer observer_;
+    Implementation implementation_;
 };
 
-} // omlog::stream
+} // l4h

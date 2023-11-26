@@ -8,7 +8,7 @@
 #include <functional>
 #include <thread>
 
-namespace omlog::ds {
+namespace l4h::ds {
 
 using OnQueuePopedFunc = std::function<void(std::string)>;
 
@@ -57,6 +57,8 @@ public:
      */
     void push(T&& newItem) {
         UniqueLock locker{size_mtx_};
+
+        // TODO:  Potential risk of getting stuck at this point. Maybe we should use a timeout.
         size_changed_cv_.wait(locker, [&]() { return size_ < TCapacity; });
 
         queue_[front_] = std::move(newItem);
@@ -101,14 +103,11 @@ private:
      * @brief pop
      * @return
      */
-    void pop(std::stop_token stop_token)
-    {
-        while (!stop_token.stop_requested())
-        {
+    void pop(std::stop_token stop_token) {
+        while (!stop_token.stop_requested()) {
             UniqueLock locker{size_mtx_};
             if (size_changed_cv_.wait_for(locker, std::chrono::milliseconds(50), [this]()
-                                          { return size_ > 0u; }))
-            {
+                                          { return size_ > 0u; })) {
                 consume_(std::move(queue_[back_]));
                 advance(back_);
 

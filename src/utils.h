@@ -4,7 +4,7 @@
 #include <optional>
 #include <filesystem>
 
-namespace omlog::utils {
+namespace l4h::utils {
 
     std::optional<size_t> fileSize(const std::filesystem::path& file_path) {
         if (!std::filesystem::exists(file_path)) {

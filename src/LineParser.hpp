@@ -1,6 +1,8 @@
 
 #pragma once
 
+#include "definitions.hpp"
+
 #include <fmt/core.h>
 
 #include <concepts>
@@ -10,14 +12,15 @@
 #include <deque>
 #include <regex>
 #include <algorithm>
-
-
-namespace omlog::header {
+#include <utility>
 
 // Reference: spdlog/pattern_formatter-inl.h
 
+namespace l4h {
+
+
 template <typename T>
-concept HeaderEntity = requires(T entity, std::string_view value_sv) {
+concept LineEntities = requires(T entity, std::string_view value_sv) {
     {entity.to_regex()} -> std::same_as<std::string_view>;
     {std::as_const(entity).clone()} -> std::same_as<T>;
     {entity.set_value(value_sv)};
@@ -41,12 +44,12 @@ public:
         return "UNKNOWN_DATE_FORMAT";   // TODO: Is there a better way to return a valid value? Default?
     }
 
-    Date clone() const { return {*this}; }
+    [[nodiscard]] Date clone() const { return {*this}; }
 
     // TODO: convert this value to a tm structure 
     void set_value(std::string_view value) { value_ = value; }
 
-    const std::string& value() const { return value_;}
+    [[nodiscard]] const std::string& value() const { return value_;}
 
 private:
     DateFormat format_;
@@ -65,7 +68,7 @@ struct TimeDivision {
 class Time {
 public:
     explicit Time(TimeDivision&& time_division) 
-        : division_{std::move(time_division)} {}
+        : division_{time_division} {}
 
     std::string_view to_regex() {
         static constexpr auto hhmmss = R"#(\d{2}:\d{2}:\d{2})#";
@@ -77,9 +80,9 @@ public:
         }
         return hhmmss;
     }
-    Time clone() const { return {*this}; }
+    [[nodiscard]] Time clone() const { return {*this}; }
     void set_value(std::string_view value) { value_ = value; }
-    const std::string& value() const { return value_;}
+    [[nodiscard]] const std::string& value() const { return value_;}
 private:
     TimeDivision division_;
     std::string pattern_;
@@ -90,9 +93,9 @@ class LoggerName {
 public:
     LoggerName() = default;
     std::string_view to_regex() { return R"#((.*?))#"; }
-    LoggerName clone() const { return {*this}; }
+    [[nodiscard]] LoggerName clone() const { return {*this}; }
     void set_value(std::string_view value) { value_ = value; }
-    const std::string& value() const { return value_;}
+    [[nodiscard]] const std::string& value() const { return value_;}
 private:
     std::string value_;
 };
@@ -102,10 +105,10 @@ enum class LogLevel {Trace, Debug, Info, Warn, Err, Critical};
 class Level {
 public:
     Level() = default;
-    std::string_view to_regex() { return R"#((.*?))#"; }
-    Level clone() const { return {*this}; }
+    static std::string_view to_regex() { return R"#((.*?))#"; }
+    [[nodiscard]] Level clone() const { return {*this}; }
     void set_value(std::string_view value) { value_ = value; }
-    const std::string& value() const { return value_;}
+    [[nodiscard]] const std::string& value() const { return value_;}
 private:
     std::string value_;
 };
@@ -114,11 +117,11 @@ class ThreadId {
 public:
     ThreadId() = default;
 
-    // The thread Id could be represented by a hexadecimal value as well
-    std::string_view to_regex() { return R"#(([A-Fa-f0-9]+))#"; }
-    ThreadId clone() const { return {*this}; }
+    // The thread ID could be represented by a hexadecimal value as well
+    static std::string_view to_regex() { return R"#(([A-Fa-f0-9]+))#"; }
+    [[nodiscard]] ThreadId clone() const { return {*this}; }
     void set_value(std::string_view value) { value_ = value; }
-    const std::string& value() const { return value_;}
+    [[nodiscard]] const std::string& value() const { return value_;}
 private:
     std::string value_;
 };
@@ -127,10 +130,10 @@ class Pid {
 public:
     Pid() = default;
 
-    std::string_view to_regex() { return R"#(([0-9]+))#"; }
-    Pid clone() const { return {*this}; }
+    static std::string_view to_regex() { return R"#(([0-9]+))#"; }
+    [[nodiscard]] Pid clone() const { return {*this}; }
     void set_value(std::string_view value) { value_ = value; }
-    const std::string& value() const { return value_;}
+    [[nodiscard]] const std::string& value() const { return value_;}
 private:
     std::string value_;
 };
@@ -139,10 +142,10 @@ class Source {
 public:
     Source() = default;
 
-    std::string_view to_regex() { return R"#((.*?))#"; }
-    Source clone() const { return {*this}; }
+    static std::string_view to_regex() { return R"#((.*?))#"; }
+    [[nodiscard]] Source clone() const { return {*this}; }
     void set_value(std::string_view value) { value_ = value; }
-    const std::string& value() const { return value_;}
+    [[nodiscard]] const std::string& value() const { return value_;}
 private:
     std::string value_;
 };
@@ -151,10 +154,10 @@ class SourceFuncName {
 public:
     SourceFuncName() = default;
 
-    std::string_view to_regex() { return R"#((.*?))#"; }
-    SourceFuncName clone() const { return {*this}; }
+    static std::string_view to_regex() { return R"#((.*?))#"; }
+    [[nodiscard]] SourceFuncName clone() const { return {*this}; }
     void set_value(std::string_view value) { value_ = value; }
-    const std::string& value() const { return value_;}
+    [[nodiscard]] const std::string& value() const { return value_;}
 private:
     std::string value_;
 };
@@ -163,10 +166,10 @@ class SourceLine {
 public:
     SourceLine() = default;
 
-    std::string_view to_regex() { return R"#(([0-9]+))#"; }
-    SourceLine clone() const { return {*this}; }
+    static std::string_view to_regex() { return R"#(([0-9]+))#"; }
+    [[nodiscard]] SourceLine clone() const { return {*this}; }
     void set_value(std::string_view value) { value_ = value; }
-    const std::string& value() const { return value_;}
+    [[nodiscard]] const std::string& value() const { return value_;}
 private:
     std::string value_;
 };
@@ -175,70 +178,45 @@ class Message {
 public:
     Message() = default;
 
-    std::string_view to_regex() { return R"#((.*?)$)#"; }
-    Message clone() const { return {*this}; }
+    static std::string_view to_regex() { return R"#((.*?)$)#"; }
+    [[nodiscard]] Message clone() const { return {*this}; }
     void set_value(std::string_view value) { value_ = value; }
-    const std::string& value() const { return value_;}
+    [[nodiscard]] const std::string& value() const { return value_;}
 private:
     std::string value_;
 };
 
-class ScopeMessageBegin {
-public:
-    ScopeMessageBegin() = default;
+using line_types_vec_t = std::vector<std::variant< Date
+                                                 , Time
+                                                 , LoggerName
+                                                 , Level
+                                                 , ThreadId
+                                                 , Pid
+                                                 , Source
+                                                 , SourceFuncName
+                                                 , SourceLine
+                                                 , Message>>;
 
-    std::string_view to_regex() { return ""; }
-    ScopeMessageBegin clone() const { return {*this}; }
-    void set_value(std::string_view value) { value_ = value; }
-    const std::string& value() const { return value_;}
-private:
-    std::string value_;
-};
-
-class ScopeMessageEnd {
-public:
-    ScopeMessageEnd() = default;
-
-    std::string_view to_regex() { return ""; }
-    ScopeMessageEnd clone() const { return {*this}; }
-    void set_value(std::string_view value) { value_ = value; }
-    const std::string& value() const { return value_;}
-private:
-    std::string value_;
-};
-
-using header_types_vec_t = std::vector<std::variant< Date
-                                                   , Time
-                                                   , LoggerName
-                                                   , Level
-                                                   , ThreadId
-                                                   , Pid
-                                                   , Source
-                                                   , SourceFuncName
-                                                   , SourceLine
-                                                   , Message
-                                                   >>;
-
-// Pattern matching for function objects and creates a single function object 
+// Pattern matching for function objects and creates a single function object
 // that can handle multiple callable objects.
-template <typename... Ts> 
-struct overload : Ts... { 
+template <typename... Ts>
+struct Overload : Ts... {
 
-    // This line is creating an alias for the operator() member function from each of the 
-    // base classes (types in Ts). This essentially means that the overload class 
+    // This line is creating an alias for the operator() member function from each of the
+    // base classes (types in Ts). This essentially means that the Overload class
     // has overloaded operator() functions from all the types provided as template arguments.
-    using Ts::operator()...; 
-}; 
+    using Ts::operator()...;
+};
 
 /**
  * 
  */
-class HeaderPattern {
+class LineParser {
 public:
-    HeaderPattern() = default;
+    LineParser() = default;
 
-    template <HeaderEntity... PatternArgs>
-    explicit HeaderPattern(std::string_view pattern, PatternArgs... args) {
+    template <LineEntities... PatternArgs>
+    explicit LineParser(std::string_view pattern, PatternArgs... args) {
 
         if (int num_place_holders = count_place_holders(pattern); num_place_holders == sizeof...(PatternArgs)) {
             build_pattern(pattern, args...);
@@ -248,24 +226,27 @@ public:
     }
 
     // Receives a line and try to return the entities from it
-    header_types_vec_t deserialize(const std::string& log_line) {
-        header_types_vec_t results{};
-        try {
-            std::regex p(regex_);
-            std::smatch match;
-            std::deque<std::string> values;
+    // Attention: this function was not designed to be thread safe, once it uses an internal attribute to hold the
+    //            parsed values for the received line.
+    line_types_vec_t deserialize(const std::string& log_line) {
+        static std::regex p(regex_);
+        static std::smatch match;
+        static std::deque<std::string> values;
+        static line_types_vec_t results = type_sequence_;
+        static auto const type_sequence_size = type_sequence_.size();
 
+        try {
             if (std::regex_search(log_line, match, p)) {
                 for (auto i = 1; i < match.size(); ++i) {
                     values.push_back(match[i]);
                 }
             }
-            if (values.size() == type_sequence_.size()) {
-                for (auto& type : type_sequence_) {
+            if (values.size() == type_sequence_size) {
+                for (auto&& type : results) {
                     const auto value = values.front();
                     values.pop_front();
 
-                    std::visit(overload {
+                    std::visit(Overload {
                           [&value] (Date& date) { date.set_value(value); }
                         , [&value] (Time& time) { time.set_value(value); }
                         , [&value] (LoggerName& logger_name) { logger_name.set_value(value); }
@@ -280,12 +261,13 @@ public:
                 }
             }
         } catch ([[maybe_unused]] std::regex_error &e) {
-            header_types_vec_t{}.swap(results);
+            line_types_vec_t{}.swap(results);
         }
-        return results;
+        values.clear();
+        return std::exchange(results, type_sequence_);
     }
 
-    const std::string& regex_str() const { return regex_; }
+    [[nodiscard]] const std::string& regex_str() const { return regex_; }
 
 private:
     template <typename... Entities>
@@ -307,13 +289,13 @@ private:
     }
 
     //Base case for the recursive function (no arguments left to process)
-    void build_pattern([[maybe_unused]] std::string_view pattern) {
+    void build_pattern(std::string_view pattern) {
         if (pattern.empty()) { return; }
 
         regex_.append(pattern);
     }
 
-    std::string escape_if_regex_symbol(char c) const {
+    [[nodiscard]] static std::string escape_if_regex_symbol(char c) {
         if (regex_metachars_.find_first_of(c) != std::string_view::npos) {
             std::string ret = fmt::format(R"(\{})", c);
             return ret;
@@ -321,7 +303,7 @@ private:
         return {c};
     }
 
-    int count_place_holders(std::string_view pattern, int count = 0) const {
+    [[nodiscard]] int count_place_holders(std::string_view pattern, int count = 0) const {
         if (pattern.empty()) { return count; }
 
         if (pattern.starts_with(place_holder_)) {
@@ -331,10 +313,10 @@ private:
         }
     }
 
-    header_types_vec_t type_sequence_;
+    line_types_vec_t type_sequence_;
     constexpr static std::string_view regex_metachars_ = ".*+?|[]()^$\\";
     constexpr static std::string_view place_holder_ = "{}";
     std::string regex_;
 };
 
-} // namespace omlog::header
+} // namespace l4h

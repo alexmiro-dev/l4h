@@ -4,7 +4,7 @@
 #include <cassert>
 #include <coroutine>
 
-namespace omlog::coro {
+namespace l4h::coro {
 
 template <typename T>
 class [[nodiscard]] Generator {

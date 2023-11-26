@@ -9,6 +9,9 @@ FetchContent_MakeAvailable(fmt)
 
 find_package(Threads REQUIRED) # for pthread
 
-add_executable(omlog main.cpp TextStreamReader.hpp defs.hpp utils.h)
+add_executable(l4h main.cpp TextStreamReader.hpp definitions.hpp utils.h
+        Timeline.hpp
+        ObserverAdapter.hpp
+        LogRecord.hpp)
 
-target_link_libraries(omlog PRIVATE fmt::fmt)
+target_link_libraries(l4h PRIVATE fmt::fmt)

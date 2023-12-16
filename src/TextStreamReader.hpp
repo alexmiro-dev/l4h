@@ -2,8 +2,9 @@
 
 #include "definitions.hpp"
 #include "utils.h"
-#include "StreamBuffers.hpp"
 #include "coroutine_utils.hpp"
+#include "LogRecord.hpp"
+#include "ObserverAdapter.hpp"
 
 #include <fstream>
 #include <thread>
@@ -15,22 +16,27 @@
 
 namespace l4h {
 
+using LogRecordObserver = ObserverAdapter<LogRecord, defs::LogRecordType>;
+
 template <typename T>
-concept StreamObservable = requires(T stream, std::string data, double percentage, defs::StreamConfig const& config) {
-    { stream.config(std::forward<defs::StreamConfig const&>(config)) } -> std::same_as<void>;
+concept StreamObservable = requires(T stream, std::string data, double percentage, defs::StreamConfig const& config
+                                    ,  LogRecordObserver* recordObserver) {
+    { stream.set_config(std::forward<defs::StreamConfig const&>(config)) } -> std::same_as<void>;
     { stream.on_data(std::forward<std::string>(data)) } -> std::same_as<void>;
     { stream.on_paused()} -> std::same_as<void>;
     { stream.on_resumed()} -> std::same_as<void>;
     { stream.on_stopped()} -> std::same_as<void>;
     { stream.on_eof()} -> std::same_as<void>;
-    { stream.on_read_percentage(std::forward<double>(percentage))} -> std::same_as<void>;
+    { stream.on_read_percentage(std::forward<double>(percentage)) } -> std::same_as<void>;
+    { stream.attach(std::forward<LogRecordObserver*>(recordObserver)) } -> std::same_as<bool>;
+    { stream.detach(std::forward<LogRecordObserver*>(recordObserver)) } -> std::same_as<bool>;
 };
 
 template <StreamObservable Implementation>
 class TextStreamReader {
 public:
     explicit TextStreamReader(defs::StreamConfig&& config) : config_{std::move(config)} {
-        implementation_.config(config_);
+        implementation_.set_config(config_);
     }
 
     TextStreamReader() = delete;
@@ -93,6 +99,8 @@ private:
         file_stream_ = std::move(file);
     }
 
+    // TODO: Implement the same behavior as the `tail` command to keep reading the file updates
+    //
     coro::Generator<std::string> read_chunks() {
         static std::vector<char> buffer(config_.chunk_size);
 

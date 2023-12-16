@@ -19,14 +19,6 @@
 namespace l4h {
 
 
-template <typename T>
-concept LineEntities = requires(T entity, std::string_view value_sv) {
-    {entity.to_regex()} -> std::same_as<std::string_view>;
-    {std::as_const(entity).clone()} -> std::same_as<T>;
-    {entity.set_value(value_sv)};
-    {std::as_const(entity).value()} -> std::same_as<std::string const&>;
-};
-
 enum class DateFormat { YYYY_MM_DD, DD_MM_YYYY };
 
 class Date {
@@ -92,7 +84,7 @@ private:
 class LoggerName {
 public:
     LoggerName() = default;
-    std::string_view to_regex() { return R"#((.*?))#"; }
+    static std::string_view to_regex() { return R"#((.*?))#"; }
     [[nodiscard]] LoggerName clone() const { return {*this}; }
     void set_value(std::string_view value) { value_ = value; }
     [[nodiscard]] const std::string& value() const { return value_;}
@@ -100,7 +92,6 @@ private:
     std::string value_;
 };
 
-enum class LogLevel {Trace, Debug, Info, Warn, Err, Critical};
 
 class Level {
 public:
@@ -215,7 +206,7 @@ class LineParser {
 public:
     LineParser() = default;
 
-    template <LineEntities... PatternArgs>
+    template <defs::LineEntity... PatternArgs>
     explicit LineParser(std::string_view pattern, PatternArgs... args) {
 
         if (int num_place_holders = count_place_holders(pattern); num_place_holders == sizeof...(PatternArgs)) {

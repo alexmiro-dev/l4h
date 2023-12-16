@@ -2,14 +2,12 @@
 #pragma once
 
 #include "TextStreamReader.hpp"
-#include "StreamBuffers.hpp"
 #include "ReactiveStaticQueue.hpp"
 #include "LineParser.hpp"
-#include "LogRecord.hpp"
 
 #include <mutex>
 #include <condition_variable>
-#include <iostream>
+#include <unordered_set>
 
 namespace l4h {
 
@@ -30,7 +28,7 @@ public:
 
     ~LogStreamReaderImpl() = default;
 
-    void config(defs::StreamConfig const& config) { stream_config_ = config; }
+    void set_config(defs::StreamConfig const& config) { stream_config_ = config; }
 
     void on_data(std::string data) { raw_data_queue_.push(std::move(data)); }
 
@@ -63,6 +61,15 @@ public:
 
     void on_read_percentage([[maybe_unused]] double percentage) { }
 
+    bool attach(LogRecordObserver* observer) {
+        auto [pos, success] = record_observers_.insert(observer);
+        return success;
+    }
+
+    bool detach(LogRecordObserver* observer) {
+        return (record_observers_.erase(observer) > 0U);
+    }
+
 private:
     struct DataHelper {
         defs::line_uid_t uid{1};
@@ -87,7 +94,7 @@ private:
                 
                 auto record = parse(data_.info);
 
-                // TODO: publish?
+                notify(std::move(record));
 
                 data_.line_vec.clear();
                 data_.info.start_pos = data_.cursor_pos + 1;
@@ -107,18 +114,23 @@ private:
         LogRecord record;
 
         if (auto const tokens = parser.deserialize(stream_line.line); !tokens.empty()) {
-            record.set_type(LogRecord::Type::HeaderAndMessage);
+            record.set_type(defs::LogRecordType::HeaderAndMessage);
             record.set_uid(stream_line.id);
             record.set_tokens(tokens);
             last_parsed_line_id = stream_line.id;
         } else {
-            record.set_type(LogRecord::Type::MessagePart);
+            record.set_type(defs::LogRecordType::MessagePart);
             record.set_parent_uid(last_parsed_line_id);
             record.set_message_part(stream_line.line);
         }
         return record;
     }
 
+    void notify(LogRecord&& record) {
+        for (auto&& observer : record_observers_) {
+            observer->async_update(record, record.type());
+        }
+    }
 
     ds::ReactiveStaticQueue<std::string, 16384> raw_data_queue_; // power of two
     std::vector<defs::StreamLineData> lines_;
@@ -127,6 +139,7 @@ private:
     std::atomic_bool processed_queue_data_{false};
     std::condition_variable queue_data_finished_cv_;
     defs::StreamConfig stream_config_;
+    std::unordered_set<LogRecordObserver*> record_observers_;
 };
 
 using LogStreamReader = TextStreamReader<LogStreamReaderImpl>;

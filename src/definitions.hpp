@@ -28,6 +28,10 @@ using line_uid_t = int32_t;
 
 constexpr int g_line_no_uid = {0};
 
+enum class LogLevel {Trace, Debug, Info, Warn, Error, Critical};
+
+enum class LogRecordType { Unknown, HeaderAndMessage, MessagePart };
+
 struct StreamLineData {
     long long start_pos{g_line_no_uid};
     line_uid_t id{g_line_no_uid};
@@ -42,5 +46,14 @@ struct StreamConfig {
 };
 
 const char g_new_line = '\n';
+
+template <typename T>
+concept LineEntity = requires(T entity, std::string_view value_sv) {
+    {entity.to_regex()} -> std::same_as<std::string_view>;
+    {std::as_const(entity).clone()} -> std::same_as<T>;
+    {entity.set_value(value_sv)};
+    {std::as_const(entity).value()} -> std::same_as<std::string const&>;
+};
+
 
 } // namespace l4h::defs

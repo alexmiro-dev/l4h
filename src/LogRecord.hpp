@@ -2,6 +2,7 @@
 #pragma once
 
 #include "definitions.hpp"
+#include "LineParser.hpp"
 
 namespace l4h {
 
@@ -10,10 +11,9 @@ namespace l4h {
  */
 class LogRecord {
 public:
-    enum class Type { Invalid, HeaderAndMessage, MessagePart };
 
-    void set_type(Type type) { type_ = type; }
-    [[nodiscard]] Type type() const { return type_; }
+    void set_type(defs::LogRecordType type) { type_ = type; }
+    [[nodiscard]] defs::LogRecordType type() const { return type_; }
 
     void set_uid(defs::line_uid_t uid) { uid_ = uid; }
     [[nodiscard]] defs::line_uid_t uid() const { return uid_; }
@@ -23,37 +23,43 @@ public:
 
     void set_tokens(line_types_vec_t tokens) { tokens_ = tokens; }
 
-    template <typename RequestedEntity>
+    template <defs::LineEntity RequestedEntity>
     std::optional<RequestedEntity> get() const {
-        if (std::is_same_v<Message, RequestedEntity> && type_ == Type::MessagePart) {
-            if (message_part_.value().empty()) {
+        if (std::is_same_v<Message, RequestedEntity> && type_ == defs::LogRecordType::MessagePart) {
+            if (message_.value().empty()) {
                 return std::nullopt;
             }
-            return message_part_;
+            return message_;
         }
         if (!tokens_) {
             return std::nullopt;
         }
+        RequestedEntity result;
+
         for (auto&& token : tokens_.value()) {
-            std::visit([] (auto&& entity) {
+            std::visit([&result] (auto&& entity) {
                 using EntityType = std::decay_t<decltype(entity)>;
 
                 if constexpr (std::is_same_v<EntityType, RequestedEntity>) {
-                    return entity.value();
+                    result = entity.clone();
                 }
             }, token);
+
+            if (!result.value().empty()) {
+                return result;
+            }
         }
         return std::nullopt;
     }
 
-    void set_message_part(std::string const& part) { message_part_.set_value(part); }
+    void set_message_part(std::string const& part) { message_.set_value(part); }
 
 private:
     std::optional<line_types_vec_t> tokens_;
-    Type type_{Type::Invalid};
+    defs::LogRecordType type_{defs::LogRecordType::Unknown};
     defs::line_uid_t uid_{defs::g_line_no_uid};
     defs::line_uid_t parent_uid_{defs::g_line_no_uid};
-    Message message_part_;
+    Message message_;
 };
 
 } // namespace l4h

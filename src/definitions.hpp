@@ -22,15 +22,15 @@ consteval size_t operator ""_mb(unsigned long long value) {
     return value * g_size_1kb * g_size_1kb;
 }
 
-enum class FileEncoding { UTF8, UTF16 };
+enum struct FileEncoding { UTF8, UTF16 };
 
 using line_uid_t = int32_t;
 
 constexpr int g_line_no_uid = {0};
 
-enum class LogLevel {Trace, Debug, Info, Warn, Error, Critical};
+enum struct LogLevel {Trace, Debug, Info, Warn, Error, Critical};
 
-enum class LogRecordType { Unknown, HeaderAndMessage, MessagePart };
+enum struct LogRecordType { Unknown, HeaderAndMessage, MessagePart };
 
 struct StreamLineData {
     long long start_pos{g_line_no_uid};

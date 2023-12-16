@@ -7,22 +7,22 @@ namespace l4h {
 
 // Observer pattern using value semantics (std::function)
 //
-template <typename Subject, typename ChangedTag>
+template <typename Subject>
 class ObserverAdapter {
 public:
-    using OnUpdate = std::function<void(Subject const&, ChangedTag)>;
+    using OnUpdate = std::function<void(Subject const&)>;
 
     explicit ObserverAdapter(OnUpdate on_update) : on_update_{std::move(on_update)} {}
 
-    void update(Subject const& subject, ChangedTag tag) {
-        on_update_(subject, tag);
+    void update(Subject const& subject) {
+        on_update_(subject);
     }
 
-    void async_update(Subject const& subject, ChangedTag tag) {
-
+    void update_async(Subject const& subject) {
         // TODO: should run in a task to avoid deadlocks (execution timeout)
-        on_update_(subject, tag);
+        on_update_(subject);
     }
+
 private:
     OnUpdate on_update_;
 };

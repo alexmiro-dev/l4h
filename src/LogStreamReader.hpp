@@ -128,7 +128,7 @@ private:
 
     void notify(LogRecord&& record) const {
         for (auto&& observer : record_observers_) {
-            observer->async_update(record, record.type());
+            observer->update_async(record);
         }
     }
 

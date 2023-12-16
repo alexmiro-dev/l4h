@@ -14,7 +14,7 @@
 
 namespace l4h {
 
-using LogRecordObserver = ObserverAdapter<LogRecord, defs::LogRecordType>;
+using LogRecordObserver = ObserverAdapter<LogRecord>;
 
 template <typename T>
 concept StreamObservable = requires(T stream, std::string data, double percentage, defs::StreamConfig const& config

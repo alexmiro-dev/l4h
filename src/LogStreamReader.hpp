@@ -126,7 +126,7 @@ private:
         return record;
     }
 
-    void notify(LogRecord&& record) {
+    void notify(LogRecord&& record) const {
         for (auto&& observer : record_observers_) {
             observer->async_update(record, record.type());
         }

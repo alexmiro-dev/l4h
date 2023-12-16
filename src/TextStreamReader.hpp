@@ -12,8 +12,6 @@
 #include <condition_variable>
 #include <mutex>
 
-#include <iostream>
-
 namespace l4h {
 
 using LogRecordObserver = ObserverAdapter<LogRecord, defs::LogRecordType>;

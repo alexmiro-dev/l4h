@@ -53,15 +53,15 @@ public:
 
     /**
      * @brief push
-     * @param newItem
+     * @param new_item
      */
-    void push(T&& newItem) {
+    void push(T&& new_item) {
         UniqueLock locker{size_mtx_};
 
         // TODO:  Potential risk of getting stuck at this point. Maybe we should use a timeout.
         size_changed_cv_.wait(locker, [&]() { return size_ < TCapacity; });
 
-        queue_[front_] = std::move(newItem);
+        queue_[front_] = std::move(new_item);
 
         advance(front_);
         size_++;

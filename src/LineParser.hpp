@@ -3,8 +3,6 @@
 
 #include "definitions.hpp"
 
-#include <fmt/core.h>
-
 #include <concepts>
 #include <string_view>
 #include <variant>
@@ -13,6 +11,8 @@
 #include <regex>
 #include <algorithm>
 #include <utility>
+#include <format>
+#include <sstream>
 
 // Reference: spdlog/pattern_formatter-inl.h
 
@@ -48,7 +48,7 @@ private:
     std::string value_;
 };
 
-struct TimeDivision {
+struct TimeFraction {
     enum class Unity {None, Milliseconds, Microseconds, Nanoseconds };
 
     Unity unity{Unity::None};
@@ -59,26 +59,66 @@ struct TimeDivision {
 // \d{2}:\d{2}:\d{2}\.\d{3}
 class Time {
 public:
-    explicit Time(TimeDivision&& time_division) 
-        : division_{time_division} {}
+    struct Components {
+        int hour;
+        int min;
+        int sec;
+        int fraction;
+    };
+
+    Time() = default;
+
+    explicit Time(TimeFraction&& time_division)
+        : fraction_{time_division} {}
 
     std::string_view to_regex() {
         static constexpr auto hhmmss = R"#(\d{2}:\d{2}:\d{2})#";
 
-        if (division_.unity != TimeDivision::Unity::None) {
-            const std::string sep = division_.separator == '.' ? "\\." : std::string{division_.separator};
-            pattern_ = fmt::format(R"#(({}{}\d{{{}}}))#", hhmmss, sep, division_.digits);
+        if (fraction_.unity != TimeFraction::Unity::None) {
+            const std::string sep = fraction_.separator == '.' ? "\\." : std::string{fraction_.separator};
+            pattern_ = std::format(R"#(({}{}\d{{{}}}))#", hhmmss, sep, fraction_.digits);
             return pattern_;
         }
         return hhmmss;
     }
     [[nodiscard]] Time clone() const { return {*this}; }
-    void set_value(std::string_view value) { value_ = value; }
-    [[nodiscard]] const std::string& value() const { return value_;}
+    void set_value(std::string_view value) {
+        value_ = value;
+        splitComponents();
+    }
+    [[nodiscard]] std::string const& value() const { return value_; }
+    [[nodiscard]] Components components() const { return components_; }
+    [[nodiscard]] std::chrono::duration<double> time_duration() const {
+        double total_secs{0L};
+
+        if (fraction_.unity != TimeFraction::Unity::None) {
+            total_secs = components_.hour * 3600
+                                    + components_.min * 60
+                                    + components_.sec
+                                    + components_.fraction;
+        } else {
+            total_secs = components_.hour * 3600
+                                    + components_.min * 60
+                                    + components_.sec;
+
+        }
+        return std::chrono::duration<double>{total_secs};
+    }
+
 private:
-    TimeDivision division_;
+    void splitComponents() {
+        std::istringstream iss{value_};
+        char sep;
+        if (fraction_.unity != TimeFraction::Unity::None) {
+            iss >> components_.hour >> sep >> components_.min >> sep >> components_.sec >> sep >> components_.fraction;
+        } else {
+            iss >> components_.hour >> components_.min >> components_.sec;
+        }
+    }
+    TimeFraction fraction_;
     std::string pattern_;
     std::string value_;
+    Components components_;
 };
 
 class LoggerName {
@@ -87,7 +127,7 @@ public:
     static std::string_view to_regex() { return R"#((.*?))#"; }
     [[nodiscard]] LoggerName clone() const { return {*this}; }
     void set_value(std::string_view value) { value_ = value; }
-    [[nodiscard]] const std::string& value() const { return value_;}
+    [[nodiscard]] const std::string& value() const { return value_; }
 private:
     std::string value_;
 };
@@ -288,7 +328,7 @@ private:
 
     [[nodiscard]] static std::string escape_if_regex_symbol(char c) {
         if (regex_metachars_.find_first_of(c) != std::string_view::npos) {
-            std::string ret = fmt::format(R"(\{})", c);
+            std::string ret = std::format(R"(\{})", c);
             return ret;
         }
         return {c};

@@ -15,3 +15,5 @@ add_executable(l4h main.cpp TextStreamReader.hpp definitions.hpp utils.h
         LogRecord.hpp)
 
 target_link_libraries(l4h PRIVATE fmt::fmt)
+
+add_subdirectory(tests)

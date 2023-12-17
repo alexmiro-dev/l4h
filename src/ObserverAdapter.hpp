@@ -2,6 +2,8 @@
 #pragma once
 
 #include <functional>
+#include <thread>
+#include <atomic>
 
 namespace l4h {
 
@@ -10,21 +12,41 @@ namespace l4h {
 template <typename Subject>
 class ObserverAdapter {
 public:
-    using OnUpdate = std::function<void(Subject const&)>;
+    using OnUpdate = std::function<void(Subject)>;
 
-    explicit ObserverAdapter(OnUpdate on_update) : on_update_{std::move(on_update)} {}
+private:
+    class ConcurrentUpdater {
+    public:
+        explicit ConcurrentUpdater(OnUpdate on_update) : update_{std::move(on_update)} {}
 
-    void update(Subject const& subject) {
-        on_update_(subject);
-    }
+        void run(Subject subject) {
+            std::jthread([this, &subject] {
+                while (is_running_.test_and_set()) {
+                    std::this_thread::yield();
+                }
+                update_(subject);
 
-    void update_async(Subject const& subject) {
-        // TODO: should run in a task to avoid deadlocks (execution timeout)
-        on_update_(subject);
+                is_running_.clear();
+                is_running_.notify_one();
+            });
+        }
+
+    private:
+        std::atomic_flag is_running_{ATOMIC_FLAG_INIT};
+        std::jthread thread_;
+        OnUpdate update_;
+    };
+
+public:
+    explicit ObserverAdapter(OnUpdate on_update) : updater_{std::move(on_update)} {}
+
+    // Runs the callback concurrently to avoid blocking the caller of this function.
+    void update(Subject subject) {
+        updater_.run(subject);
     }
 
 private:
-    OnUpdate on_update_;
+    ConcurrentUpdater updater_;
 };
 
 } // namespace l4h

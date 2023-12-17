@@ -25,15 +25,6 @@ public:
 
     template <defs::LineEntity RequestedEntity>
     std::optional<RequestedEntity> get() const {
-        if (std::is_same_v<Message, RequestedEntity> && type_ == defs::LogRecordType::MessagePart) {
-            if (message_.value().empty()) {
-                return std::nullopt;
-            }
-            return message_;
-        }
-        if (!tokens_) {
-            return std::nullopt;
-        }
         RequestedEntity result;
 
         for (auto&& token : tokens_.value()) {
@@ -52,14 +43,11 @@ public:
         return std::nullopt;
     }
 
-    void set_message_part(std::string const& part) { message_.set_value(part); }
-
 private:
     std::optional<line_types_vec_t> tokens_;
     defs::LogRecordType type_{defs::LogRecordType::Unknown};
     defs::line_uid_t uid_{defs::g_line_no_uid};
     defs::line_uid_t parent_uid_{defs::g_line_no_uid};
-    Message message_;
 };
 
 } // namespace l4h

@@ -79,7 +79,6 @@ private:
     };
 
     void on_reactive_queue_data(std::string data) {
-        
         std::unique_lock locker{queue_data_mtx_};
         processed_queue_data_ = false;
         locker.unlock();
@@ -118,17 +117,23 @@ private:
             record.set_uid(stream_line.id);
             record.set_tokens(tokens);
             last_parsed_line_id = stream_line.id;
+
+            // TODO: consider having a map for saving as key the parent line and a list of all your child lines!
+
         } else {
             record.set_type(defs::LogRecordType::MessagePart);
             record.set_parent_uid(last_parsed_line_id);
-            record.set_message_part(stream_line.line);
+            Message message;
+            message.set_value(stream_line.line);
+            line_types_vec_t types{std::move(message)};
+            record.set_tokens(types);
         }
         return record;
     }
 
     void notify(LogRecord&& record) const {
         for (auto&& observer : record_observers_) {
-            observer->update_async(record);
+            observer->update(record);
         }
     }
 

@@ -14,7 +14,7 @@ int main()
     defs::StreamConfig config;
     config.file_path = "/home/miro/dev/vm-desktop.log";
 
-    TimeDivision time_division{TimeDivision::Unity::Nanoseconds, 3U, '.'};
+    TimeFraction time_division{TimeFraction::Unity::Nanoseconds, 3U, '.'};
     auto line_parser = std::make_shared<LineParser>("[{} {}] [{}] [{}] {}"sv
                                     , Date{DateFormat::YYYY_MM_DD}
                                     , Time{std::move(time_division)}

@@ -44,6 +44,7 @@ public:
             return;
         }
         Entry entry;
+        entry.line_uid = record.uid();
         entry.date = date_opt->clone();
         entry.time = time_opt->clone();
 

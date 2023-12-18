@@ -26,6 +26,8 @@ private:
     static constexpr std::string_view YYYY_MM_DD = R"#((\d{4}[-/.]\d{1,2}[-/.]\d{1,2}))#";
     static constexpr std::string_view DD_MM_YYYY = R"#((\d{1,2}[-\/.]\d{1,2}[-\/.]\d{4}))#";
 public:
+    Date() = default;
+
     explicit Date(DateFormat f) : format_{f} { }
 
     std::string_view to_regex() {
@@ -53,7 +55,7 @@ struct TimeFraction {
 
     Unity unity{Unity::None};
     uint8_t digits{3U};
-    char separator{'\0'};
+    char separator{'.'};
 };
 
 // \d{2}:\d{2}:\d{2}\.\d{3}
@@ -66,9 +68,7 @@ public:
         int fraction;
     };
 
-    Time() = default;
-
-    explicit Time(TimeFraction&& time_division)
+    explicit Time(TimeFraction time_division = {})
         : fraction_{time_division} {}
 
     std::string_view to_regex() {
@@ -88,19 +88,16 @@ public:
     }
     [[nodiscard]] std::string const& value() const { return value_; }
     [[nodiscard]] Components components() const { return components_; }
-    [[nodiscard]] std::chrono::duration<double> time_duration() const {
-        double total_secs{0L};
+    [[nodiscard]] std::chrono::duration<double> duration() const {
+        double total_secs{0.};
 
         if (fraction_.unity != TimeFraction::Unity::None) {
             total_secs = components_.hour * 3600
-                                    + components_.min * 60
-                                    + components_.sec
-                                    + components_.fraction;
+                       + components_.min * 60
+                       + components_.sec
+                       + components_.fraction;
         } else {
-            total_secs = components_.hour * 3600
-                                    + components_.min * 60
-                                    + components_.sec;
-
+            total_secs = components_.hour * 3600 + components_.min * 60 + components_.sec;
         }
         return std::chrono::duration<double>{total_secs};
     }

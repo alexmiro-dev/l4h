@@ -7,7 +7,7 @@
 using namespace l4h;
 using namespace std::literals;
 
-TEST_CASE("LogRecordTest", "[convert]") {
+TEST_CASE("LogRecordTest", "[time]") {
 
     TimeFraction time_division{TimeFraction::Unity::Nanoseconds, 3U, '.'};
     auto line_parser = std::make_shared<LineParser>("[{} {}] [{}] [{}] [{}] {}"sv, Date{DateFormat::YYYY_MM_DD},
@@ -26,5 +26,5 @@ TEST_CASE("LogRecordTest", "[convert]") {
     record.set_tokens(line_parts);
 
     auto time_opt = record.get<Time>();
-    auto time = time_opt.value();
+    REQUIRE(time_opt->duration() > std::chrono::duration<double>{0.});
 }

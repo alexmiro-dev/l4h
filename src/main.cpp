@@ -15,14 +15,18 @@ int main()
     config.file_path = "/home/miro/dev/vm-desktop.log";
 
     TimeFraction time_division{TimeFraction::Unity::Nanoseconds, 3U, '.'};
+
+    Level level;
+    level.configure({{defs::LogLevel::Debug, "dbg"} , {defs::LogLevel::Warn, "war"}});
+
     auto line_parser = std::make_shared<LineParser>("[{} {}] [{}] [{}] {}"sv
                                     , Date{DateFormat::YYYY_MM_DD}
                                     , Time{std::move(time_division)}
                                     , LoggerName{}
-                                    , Level{}
+                                    , std::move(level)
                                     , Message{});
 
-    const std::string line = "[2023-07-19 12:55:48.691] [app-desktop] [debug] The message";
+    const std::string line = "[2023-07-19 12:55:48.691] [app-desktop] [dbg] The message";
     auto line_parts = line_parser->deserialize(line);
 
     config.line_parser = line_parser;

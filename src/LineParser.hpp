@@ -13,6 +13,7 @@
 #include <utility>
 #include <format>
 #include <sstream>
+#include <initializer_list>
 
 // Reference: spdlog/pattern_formatter-inl.h
 
@@ -43,7 +44,7 @@ public:
     // TODO: convert this value to a tm structure 
     void set_value(std::string_view value) { value_ = value; }
 
-    [[nodiscard]] const std::string& value() const { return value_;}
+    [[nodiscard]] std::string const& value() const { return value_;}
 
 private:
     DateFormat format_;
@@ -124,7 +125,7 @@ public:
     static std::string_view to_regex() { return R"#((.*?))#"; }
     [[nodiscard]] LoggerName clone() const { return {*this}; }
     void set_value(std::string_view value) { value_ = value; }
-    [[nodiscard]] const std::string& value() const { return value_; }
+    [[nodiscard]] std::string const& value() const { return value_; }
 private:
     std::string value_;
 };
@@ -135,10 +136,39 @@ public:
     Level() = default;
     static std::string_view to_regex() { return R"#((.*?))#"; }
     [[nodiscard]] Level clone() const { return {*this}; }
-    void set_value(std::string_view value) { value_ = value; }
-    [[nodiscard]] const std::string& value() const { return value_;}
+    void set_value(std::string_view value) {
+        if (auto const v = std::string{value}; names_to_level_.contains(v)) {
+            type_ = names_to_level_[v];
+            value_ = v;
+        }
+    }
+    [[nodiscard]] std::string const& value() const { return value_; }
+
+    /**
+     * Used to specify different names for the levels other than defaults bellow.
+     * @param name_levels
+     */
+    void configure(std::initializer_list<std::pair<defs::LogLevel, std::string>> name_levels) {
+        for (auto [level, name] : name_levels) {
+            if (names_to_level_.contains(name)) {
+                names_to_level_[name] = level;
+            }
+        }
+    }
+    [[nodiscard]] defs::LogLevel type() const { return type_; }
 private:
-    std::string value_;
+    static constexpr auto unknown = "unknown";
+    std::string value_{unknown};
+    defs::LogLevel type_{defs::LogLevel::Unknown};
+    static inline std::map<std::string, defs::LogLevel> names_to_level_{
+              {unknown, defs::LogLevel::Unknown}
+            , {"trace", defs::LogLevel::Trace}
+            , {"debug", defs::LogLevel::Debug}
+            , {"info", defs::LogLevel::Info}
+            , {"warn", defs::LogLevel::Warn}
+            , {"error", defs::LogLevel::Error}
+            , {"critical", defs::LogLevel::Critical}
+    };
 };
 
 class ThreadId {
@@ -149,7 +179,7 @@ public:
     static std::string_view to_regex() { return R"#(([A-Fa-f0-9]+))#"; }
     [[nodiscard]] ThreadId clone() const { return {*this}; }
     void set_value(std::string_view value) { value_ = value; }
-    [[nodiscard]] const std::string& value() const { return value_;}
+    [[nodiscard]] std::string const& value() const { return value_;}
 private:
     std::string value_;
 };
@@ -161,7 +191,7 @@ public:
     static std::string_view to_regex() { return R"#(([0-9]+))#"; }
     [[nodiscard]] Pid clone() const { return {*this}; }
     void set_value(std::string_view value) { value_ = value; }
-    [[nodiscard]] const std::string& value() const { return value_;}
+    [[nodiscard]] std::string const& value() const { return value_;}
 private:
     std::string value_;
 };
@@ -173,7 +203,7 @@ public:
     static std::string_view to_regex() { return R"#((.*?))#"; }
     [[nodiscard]] Source clone() const { return {*this}; }
     void set_value(std::string_view value) { value_ = value; }
-    [[nodiscard]] const std::string& value() const { return value_;}
+    [[nodiscard]] std::string const& value() const { return value_;}
 private:
     std::string value_;
 };
@@ -185,7 +215,7 @@ public:
     static std::string_view to_regex() { return R"#((.*?))#"; }
     [[nodiscard]] SourceFuncName clone() const { return {*this}; }
     void set_value(std::string_view value) { value_ = value; }
-    [[nodiscard]] const std::string& value() const { return value_;}
+    [[nodiscard]] std::string const& value() const { return value_;}
 private:
     std::string value_;
 };
@@ -197,7 +227,7 @@ public:
     static std::string_view to_regex() { return R"#(([0-9]+))#"; }
     [[nodiscard]] SourceLine clone() const { return {*this}; }
     void set_value(std::string_view value) { value_ = value; }
-    [[nodiscard]] const std::string& value() const { return value_;}
+    [[nodiscard]] std::string const& value() const { return value_;}
 private:
     std::string value_;
 };
@@ -209,7 +239,7 @@ public:
     static std::string_view to_regex() { return R"#((.*?)$)#"; }
     [[nodiscard]] Message clone() const { return {*this}; }
     void set_value(std::string_view value) { value_ = value; }
-    [[nodiscard]] const std::string& value() const { return value_;}
+    [[nodiscard]] std::string const& value() const { return value_;}
 private:
     std::string value_;
 };
@@ -256,7 +286,7 @@ public:
     // Receives a line and try to return the entities from it
     // Attention: this function was not designed to be thread safe, once it uses an internal attribute to hold the
     //            parsed values for the received line.
-    line_types_vec_t deserialize(const std::string& log_line) {
+    line_types_vec_t deserialize(std::string const& log_line) {
         static std::regex p(regex_);
         static std::smatch match;
         static std::deque<std::string> values;
@@ -295,7 +325,7 @@ public:
         return std::exchange(results, type_sequence_);
     }
 
-    [[nodiscard]] const std::string& regex_str() const { return regex_; }
+    [[nodiscard]] std::string const& regex_str() const { return regex_; }
 
 private:
     template <typename... Entities>

@@ -10,6 +10,7 @@ FetchContent_MakeAvailable(fmt)
 find_package(Threads REQUIRED) # for pthread
 
 add_executable(l4h main.cpp TextStreamReader.hpp definitions.hpp utils.h
+        LevelMonitor.hpp
         Timeline.hpp
         ObserverAdapter.hpp
         LogRecord.hpp)

@@ -29,7 +29,7 @@ using line_uid_t = int32_t;
 
 constexpr int g_line_no_uid = {0};
 
-enum struct LogLevel {Trace, Debug, Info, Warn, Error, Critical};
+enum struct LogLevel { Unknown, Trace, Debug, Info, Warn, Error, Critical};
 
 enum struct LogRecordType { Unknown, HeaderAndMessage, MessagePart };
 
